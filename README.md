@@ -62,7 +62,8 @@ npm run dev
 bash
 คัดลอก
 แก้ไข
-npm install -g ngrok
+npm install ngrok
+
 7. เปิด Tunnel ไปยังพอร์ต 3000
 bash
 คัดลอก
