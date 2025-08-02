@@ -21,18 +21,39 @@ export async function POST(request: NextRequest) {
     let { data: user, error: userError } = await supabase.from("users").select("id").eq("line_id", userId).single()
 
     if (userError && userError.code === "PGRST116") {
-      // User doesn't exist, create one using RPC function
-      const { data: newUser, error: createError } = await supabase.rpc("create_user_from_api", {
-        p_line_id: userId,
-        p_display_name: customerInfo.name,
-      })
+      // User doesn't exist, create one
+      const { data: newUser, error: createError } = await supabase
+        .from("users")
+        .insert({
+          line_id: userId,
+          display_name: customerInfo.name,
+        })
+        .select("id")
+        .single()
 
       if (createError) {
         console.error("Error creating user:", createError)
-        return NextResponse.json({ error: "ไม่สามารถสร้างผู้ใช้ได้" }, { status: 500 })
-      }
 
-      user = newUser
+        // Try RPC function as fallback
+        try {
+          const { data: rpcUser, error: rpcError } = await supabase.rpc("create_user_from_api", {
+            p_line_id: userId,
+            p_display_name: customerInfo.name,
+          })
+
+          if (rpcError) {
+            console.error("RPC error:", rpcError)
+            return NextResponse.json({ error: "ไม่สามารถสร้างผู้ใช้ได้" }, { status: 500 })
+          }
+
+          user = { id: rpcUser.id }
+        } catch (rpcErr) {
+          console.error("RPC function error:", rpcErr)
+          return NextResponse.json({ error: "ไม่สามารถสร้างผู้ใช้ได้" }, { status: 500 })
+        }
+      } else {
+        user = newUser
+      }
     } else if (userError) {
       console.error("Error fetching user:", userError)
       return NextResponse.json({ error: "ไม่สามารถดึงข้อมูลผู้ใช้ได้" }, { status: 500 })
@@ -98,7 +119,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function sendOrderToLineOA(order: any, items: any[], customerInfo: any, totalAmount: number,userId: any) {
+async function sendOrderToLineOA(order: any, items: any[], customerInfo: any, totalAmount: number, userId: any) {
   const lineAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN
 
   if (!lineAccessToken) {
@@ -149,7 +170,7 @@ function createOrderFlexMessage(order: any, items: any[], customerInfo: any, tot
         contents: [
           {
             type: "image",
-            url: item.product.image_url || "https://i.pinimg.com/736x/05/b4/fb/05b4fbc3f169175e6deb97b3977175b6.jpg",
+            url: item.product.image_url || "https://via.placeholder.com/100x100",
             size: "60px",
             aspectRatio: "1:1",
             aspectMode: "cover",
@@ -508,16 +529,17 @@ function createOrderFlexMessage(order: any, items: any[], customerInfo: any, tot
               data: `action=confirm_order&order_id=${order.id}`,
             },
             style: "primary",
-            color: "#FF6B9D",
+            color: "#28a745",
           },
           {
             type: "button",
             action: {
               type: "postback",
-              label: "📞 ติดต่อลูกค้า",
-              data: `action=contact_customer&phone=${customerInfo.phone}`,
+              label: "❌ ยกเลิกสินค้า",
+              data: `action=cancel_order&order_id=${order.id}`,
             },
             style: "secondary",
+            color: "#dc3545",
             margin: "sm",
           },
         ],

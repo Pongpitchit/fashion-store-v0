@@ -19,6 +19,14 @@ export const createServerClient = () => {
       autoRefreshToken: false,
       persistSession: false,
     },
+    db: {
+      schema: "public",
+    },
+    global: {
+      headers: {
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+    },
   })
 }
 
