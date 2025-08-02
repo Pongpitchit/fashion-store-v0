@@ -17,7 +17,7 @@ export async function askProductBot(userMessage: string, productList: Product[] 
 ${productInfo}
 `;
 
-  const response = await fetch("https://dd78026b8c48.ngrok-free.app/api/chat", {
+  const response = await fetch("http://localhost:11434/api/chat", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
